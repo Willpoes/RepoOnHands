@@ -30,9 +30,12 @@ namespace MyCompany.RogueSmash.Prototype
             GameObject spawnedProjectile = GameObject.Instantiate(projectilePrefab
                 , projectileSpawnPoint.transform.position
                 , projectileSpawnPoint.transform.rotation);
+
             Projectile projectile = spawnedProjectile.AddComponent<Projectile>();
-            projectile.Init(projectileSpawnPoint.transform.forward);
+
+            projectile.Init(projectileSpawnPoint.transform.forward); //<--Projectile
             projectile.Shoot();
+
         }
     }
 }
