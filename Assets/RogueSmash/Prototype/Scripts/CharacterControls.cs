@@ -1,55 +1,131 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace MyCompany.RogueSmash.Prototype
 {
+    [RequireComponent(typeof(CharacterController), typeof(PlayerInput))]
     public class CharacterControls : MonoBehaviour
     {
-        /// <summary>
-        /// The actor is the game object in the game world
-        /// representing this character/entity.
-        /// </summary>
-        [SerializeField] private GameObject actor;
+        // CONSTANTES
+        private const float GRAVITY = -9.81f;
 
-        /// <summary>
-        /// Movement speed is linearly multiplied by this value.
-        /// </summary>
-        [SerializeField] private float moveSpeedModifier = 3;
+        // COMPONENTS
+        private CharacterController _controller;
+        private PlayerInput _playerInput;
+        [SerializeField]
+        private WeaponController _weaponController;
+        [SerializeField]
+        private WeaponController.WeaponControllerData _weaponData;
+        // MOVEMNTS
+        [SerializeField] private float playerSpeed = 4.0f;
+        [SerializeField] private float runSpeed = 4.0f;
+        [SerializeField] private float jumpHeight = 2.45f;
+        private Vector3 _playerVelocity;
+        private Vector3 _currentVelocity;
+        private bool _isGrounded;
+        private bool _isSprinting;
+        //ACCIONS
+        private InputAction _moveAction;
+        private InputAction _jumpAction;
+        private InputAction _fireAction;
+        private InputAction _sprintAction;
 
-        private Vector3 mousePosition;
-        private Vector3 lookDirection;
 
-        /// <summary>
-        /// FixedUpdate, fixray, smooth consisten movement
-        /// </summary>
-        public void FixedUpdate()
+        private void Awake()
         {
-            HandleInput();
+            _controller = GetComponent<CharacterController>();
+            _playerInput = GetComponent<PlayerInput>();
+
+            _weaponController = new WeaponController(_weaponData);
+
         }
 
-        private void HandleInput()
+        private void Start()
         {
-            Quaternion lookRotation = GetMouseInput();
-            actor.transform.rotation = lookRotation;//-->rotation
+            _moveAction = _playerInput.actions["Move"];
+            _jumpAction = _playerInput.actions["Jump"];
+            _fireAction = _playerInput.actions["Attack"];
+            _sprintAction = _playerInput.actions["Sprint"];
 
-            Vector3 moveDirection = GetInput();//-->translation
-            actor.transform.Translate(moveDirection * Time.deltaTime * moveSpeedModifier, Space.World);
+            _fireAction.performed += context => Shoot();
         }
 
-        private Vector3 GetInput()
+        private void Update()
         {
-            Vector3 input = Vector3.zero;
-            input.x = Input.GetAxis("Horizontal");
-            input.z = Input.GetAxis("Vertical");
-            return input;
+            HandleMovement();
+            HandleJump();
+            _isSprinting = _sprintAction.IsPressed();
         }
 
-        private Quaternion GetMouseInput()
+        private void HandleMovement()
         {
-            Vector2 mousePos = Input.mousePosition;
-            Vector2 relativeMousePos = new Vector2(mousePos.x - Screen.width / 2, mousePos.y - Screen.height / 2);
-            float angle = Mathf.Atan2(relativeMousePos.y, relativeMousePos.x) * Mathf.Rad2Deg * -1;
-            Quaternion rot = Quaternion.AngleAxis(angle, Vector3.up);
-            return rot;
+            _isGrounded = _controller.isGrounded;
+
+            Vector2 moveInputNormalized = _moveAction.ReadValue<Vector2>();
+            Vector3 move = new Vector3(moveInputNormalized.x, 0, moveInputNormalized.y);
+
+            float speed = _isSprinting ? playerSpeed * runSpeed : playerSpeed;
+
+            //reducir speed CORRIENDO CON MIRADA AL FRENTE
+            if (_isSprinting && moveInputNormalized.y < 0)
+            {
+                speed *= 0.5f;
+            }
+
+            _currentVelocity = move * (Time.deltaTime * speed);
+            _controller.Move(_currentVelocity);
+
+            if (move != Vector3.zero)
+            {
+                transform.forward = move;
+            }
+
+            HandleMouseRotation();
+        }
+
+        private void HandleMouseRotation()
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            Plane plane = new Plane(Vector3.up, Vector3.zero);
+            if (plane.Raycast(ray, out float distanceHit))
+            {
+                Vector3 mousePosition3D = ray.GetPoint(distanceHit);
+                Vector3 direction = mousePosition3D - transform.position;
+                direction.y = 0;
+
+                if (direction.sqrMagnitude > 0.01f)
+                {
+                    transform.rotation = Quaternion.LookRotation(direction);
+                }
+            }
+        }
+
+        private void HandleJump()
+        {
+            if (_isGrounded && _playerVelocity.y < 0)
+            {
+                _playerVelocity.y = 0f;
+            }
+
+            if (_jumpAction.IsPressed() && _isGrounded)
+            {
+                _playerVelocity.y += Mathf.Sqrt(jumpHeight * -2.0f * GRAVITY);
+            }
+
+            _playerVelocity.y += GRAVITY * Time.deltaTime;
+            _controller.Move(_playerVelocity * Time.deltaTime);
+        }
+
+        private void Shoot()
+        {
+            _weaponController?.Use();
+        }
+
+        private void OnDestroy()
+        {
+            // Desuscribirse de eventos para evitar memory leaks
+            _fireAction.performed -= _ => Shoot();
         }
     }
 }

@@ -22,16 +22,14 @@ namespace MyCompany.RogueSmash.Prototype
         {
             this.onPickedUp = onPickedUp;
         }
-    
+
         private void OnTriggerEnter(Collider other)
         {
-            if (other != null)
+            if (other.CompareTag("Player"))
             {
-                Debug.Log("ENTERED");
-                if (onPickedUp != null)
-                {
-                    onPickedUp.Invoke(other.gameObject);
-                }
+                Debug.Log($"{this.gameObject.name} collected by {other.gameObject.name}");
+                onPickedUp?.Invoke(other.gameObject);
+                Destroy(gameObject);
             }
         }
     }
