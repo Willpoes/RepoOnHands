@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -18,7 +18,7 @@ namespace MyCompany.RogueSmash.Prototype
         [SerializeField]
         private WeaponController.WeaponControllerData _weaponData;
         // MOVEMNTS
-        [SerializeField] private float playerSpeed = 12.0f;
+        [SerializeField] private float playerSpeed = 4.0f;
         [SerializeField] private float runSpeed = 4.0f;
         [SerializeField] private float jumpHeight = 2.45f;
         private Vector3 _playerVelocity;
@@ -54,27 +54,26 @@ namespace MyCompany.RogueSmash.Prototype
         private void Update()
         {
             HandleMovement();
-            HandleJump();            
+            HandleJump();
+            _isSprinting = _sprintAction.IsPressed();
         }
 
         private void HandleMovement()
         {
             _isGrounded = _controller.isGrounded;
-            Vector2 moveInput = _moveAction.ReadValue<Vector2>();
-            Vector3 move = new Vector3(moveInput.x, 0, moveInput.y);
 
-            //toggling speed / walking
-            float speed = playerSpeed;
-            if (_isSprinting)
+            Vector2 moveInputNormalized = _moveAction.ReadValue<Vector2>();
+            Vector3 move = new Vector3(moveInputNormalized.x, 0, moveInputNormalized.y);
+
+            float speed = _isSprinting ? playerSpeed * runSpeed : playerSpeed;
+
+            //reducir speed CORRIENDO CON MIRADA AL FRENTE
+            if (_isSprinting && moveInputNormalized.y < 0)
             {
-                speed *= runSpeed;
-                if (moveInput.y < 0)
-                {
-                    speed = speed / 2;
-                }
+                speed *= 0.5f;
             }
 
-            _currentVelocity = (move * (Time.deltaTime * playerSpeed)) * speed;
+            _currentVelocity = move * (Time.deltaTime * speed);
             _controller.Move(_currentVelocity);
 
             if (move != Vector3.zero)
@@ -82,7 +81,6 @@ namespace MyCompany.RogueSmash.Prototype
                 transform.forward = move;
             }
 
-            //MOUSE TO 3D
             HandleMouseRotation();
         }
 
