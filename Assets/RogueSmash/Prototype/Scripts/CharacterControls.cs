@@ -19,13 +19,18 @@ namespace MyCompany.RogueSmash.Prototype
         private WeaponController.WeaponControllerData _weaponData;
         // MOVEMNTS
         [SerializeField] private float playerSpeed = 12.0f;
+        [SerializeField] private float runSpeed = 4.0f;
         [SerializeField] private float jumpHeight = 2.45f;
         private Vector3 _playerVelocity;
+        private Vector3 _currentVelocity;
         private bool _isGrounded;
+        private bool _isSprinting;
         //ACCIONS
         private InputAction _moveAction;
         private InputAction _jumpAction;
         private InputAction _fireAction;
+        private InputAction _sprintAction;
+
 
         private void Awake()
         {
@@ -41,24 +46,36 @@ namespace MyCompany.RogueSmash.Prototype
             _moveAction = _playerInput.actions["Move"];
             _jumpAction = _playerInput.actions["Jump"];
             _fireAction = _playerInput.actions["Attack"];
+            _sprintAction = _playerInput.actions["Sprint"];
 
-            _fireAction.performed += _ => Shoot();
+            _fireAction.performed += context => Shoot();
         }
 
         private void Update()
         {
             HandleMovement();
-            HandleJump();
+            HandleJump();            
         }
 
         private void HandleMovement()
         {
             _isGrounded = _controller.isGrounded;
-
             Vector2 moveInput = _moveAction.ReadValue<Vector2>();
             Vector3 move = new Vector3(moveInput.x, 0, moveInput.y);
 
-            _controller.Move(move * (Time.deltaTime * playerSpeed));
+            //toggling speed / walking
+            float speed = playerSpeed;
+            if (_isSprinting)
+            {
+                speed *= runSpeed;
+                if (moveInput.y < 0)
+                {
+                    speed = speed / 2;
+                }
+            }
+
+            _currentVelocity = (move * (Time.deltaTime * playerSpeed)) * speed;
+            _controller.Move(_currentVelocity);
 
             if (move != Vector3.zero)
             {
@@ -66,7 +83,6 @@ namespace MyCompany.RogueSmash.Prototype
             }
 
             //MOUSE TO 3D
-
             HandleMouseRotation();
         }
 
